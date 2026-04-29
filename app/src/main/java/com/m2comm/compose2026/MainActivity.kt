@@ -37,10 +37,21 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Button
+import androidx.compose.material3.DrawerState
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
@@ -69,7 +80,15 @@ import com.m2comm.compose2026.ui.WebDetailScreen
 import com.m2comm.compose2026.ui.theme.Compose2026Theme
 
 import androidx.compose.runtime.getValue // 'by' 키워드를 위해 필수
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.m2comm.compose2026.ui.theme.NoticePink
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -82,62 +101,102 @@ class MainActivity : ComponentActivity() {
         )
         setContent {
             Compose2026Theme {
-                val navController = rememberNavController()
-                // 1. 현재 화면의 경로(Route)를 관찰합니다.
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentRoute = navBackStackEntry?.destination?.route
-                // 2. 경로 설정 (NavHost)
-
-                Scaffold(
-                    bottomBar = {
-                        // 2. 현재 경로가 "web"이 아닐 때만 하단바를 표시합니다.
-                        /*if (currentRoute != "web") {
-
-                        }*/
-                        BottomFooter(navController)
-                    }
-                ) { innerPadding ->
-                    // 3. 하단바가 사라질 때 여백(Padding)도 자동으로 조절되도록 설정
-                    Box(modifier = Modifier.padding(if (currentRoute != "web") innerPadding else PaddingValues(0.dp))) {
-                        NavHost(navController = navController, startDestination = "main") {
-                            composable("main") {
-                                LayoutExample2(navController) // 메인 화면
-                            }
-                            composable("detail") {
-                                DetailScreen(navController) // 이동할 다음 화면
-                            }
-                            composable("web") {
-                                WebDetailScreen(navController, UrlData.PROGRAM02) // 이동할 다음 화면
-                            }
-                        }
-                    }
-                }
-
-
+                MainScreen() // 메인 스크린 컴포저블 호출
             }
         }
     }
 }
 
+@Composable
+fun MainScreen() {
+    val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    // 1. 드로어 상태 및 코루틴 스코프 준비
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+
+    // 2. 최상위에 ModalNavigationDrawer를 배치 (화면 전체 높이 점유)
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            // 드로어 내용 (전체 높이로 나타남)
+            ModalDrawerSheet {
+                Text("메뉴 항목 1", modifier = Modifier.padding(16.dp))
+                Text("메뉴 항목 2", modifier = Modifier.padding(16.dp))
+            }
+        }
+    ) {
+        // 3. 드로어 내부에 Scaffold 배치
+        Scaffold(
+            bottomBar = {
+                // 특정 경로에서만 하단바 표시 로직 유지
+                if (currentRoute != "web") {
+                    BottomFooter(navController)
+                }
+            }
+        ) { innerPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(if (currentRoute != "web") innerPadding else PaddingValues(0.dp))
+            ) {
+                NavHost(navController = navController, startDestination = "main") {
+                    composable("main") {
+                        // 중요: LayoutExample12에 drawerState와 scope를 전달하여
+                        // 상단 버튼 클릭 시 드로어를 열 수 있게 합니다.
+                        LayoutExample12(navController, drawerState, scope)
+                    }
+                    composable("detail") { DetailScreen(navController) }
+                    composable("web") { WebDetailScreen(navController, UrlData.PROGRAM02) }
+                }
+            }
+        }
+    }
+}
 
 @Composable
-fun LayoutExample2(navController: NavHostController) {
-    val context = LocalContext.current
-    // Box 대신 Column을 메인 컨테이너로 사용
-    Column(modifier = Modifier.fillMaxSize().background(Color.White).systemBarsPadding()) {
-
-        // 1. 상단 아이콘 (고정 30dp)
+fun LayoutExample12(
+    navController: NavController,
+    drawerState: DrawerState,      // 추가
+    scope: CoroutineScope          // 추가
+) {
+    Column(modifier = Modifier
+        .fillMaxSize()
+        .background(Color.White)
+        .systemBarsPadding()) {
         Image(
-            painter = painterResource(id = R.drawable.img_top_menu),
+            painter = painterResource(id = R.drawable.ic_menu_main),
             contentDescription = null,
-            modifier = Modifier.padding(10.dp).size(40.dp).clickable(onClick = {
-                Toast.makeText(context, "항목 클릭!", Toast.LENGTH_SHORT).show()
-                navController.navigate("web")
-            }).padding(0.dp),
+            modifier = Modifier
+                .padding(10.dp)
+                .size(40.dp)
+                .clickable {
+                    // 전달받은 스코프와 상태를 사용하여 드로어 열기
+                    scope.launch {
+                        drawerState.open()
+                    }
+                }
         )
 
         Spacer(modifier = Modifier.weight(1f))
 
+        data class MenuData(
+            val title: String,
+            val iconRes: Int
+        )
+        val navigationMenus = listOf(
+            MenuData("인사말", R.drawable.img_menu01),
+            MenuData("일정", R.drawable.img_menu02),
+            MenuData("초록보기", R.drawable.img_menu03),
+            MenuData("E-poster", R.drawable.img_menu04),
+            MenuData("Highlight", R.drawable.img_menu05),
+            MenuData("피드백", R.drawable.img_menu06),
+            MenuData("대회장 안내", R.drawable.img_menu07),
+            MenuData("전시 안내", R.drawable.img_menu08),
+            MenuData("포토갤러리", R.drawable.img_menu09)
+        )
         LazyVerticalGrid(
             columns = GridCells.Fixed(3),
             modifier = Modifier.fillMaxWidth(), // 남은 화면 공간을 다 차지함
@@ -145,39 +204,28 @@ fun LayoutExample2(navController: NavHostController) {
             contentPadding = PaddingValues(8.dp)
         ) {
             items(9) { index ->
-                val customTitle = when (index) {
-                    0 -> "첫번째"
-                    1 -> "두번째"
-                    2 -> "세번째"
-                    3 -> "네번째"
-                    4 -> "다섯번째"
-                    5 -> "여섯번째"
-                    6 -> "일곱번째"
-                    7 -> "여덟번째"
-                    8 -> "아홉번째"
-                    else -> "기타"
-                }
-                GridItemSetBig(title = customTitle)
+                // 1. 정보를 묶을 클래스 정의
+                GridItemSetBig(navigationMenus[index].title, navigationMenus[index].iconRes)
             }
         }
 
         // 2. 중간 배경 이미지 (핵심 영역)
         // weight(1f)를 주어 상단과 하단 고정 영역을 제외한 남은 공간을 다 차지함
-        /*Image(
+        Image(
             painter = painterResource(id = R.drawable.img_bg),
             contentDescription = null,
             contentScale = ContentScale.Crop, // 영역을 꽉 채우도록 설정
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-        )*/
+        )
 
         // 3. 하단 블랙 박스 (고정 80dp)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp) // 높이 50 유지
-                .background(Color.Black),
+                .background(NoticePink),
             contentAlignment = Alignment.Center
         ) {
             Row(
@@ -188,7 +236,7 @@ fun LayoutExample2(navController: NavHostController) {
             ) {
                 // 1. 왼쪽 시작 이미지 (20dp 고정)
                 Image(
-                    painter = painterResource(id = R.drawable.img_top_menu), // 아이콘 리소스
+                    painter = painterResource(id = R.drawable.ic_notice), // 아이콘 리소스
                     contentDescription = null,
                     modifier = Modifier.size(20.dp)
                 )
@@ -203,6 +251,10 @@ fun LayoutExample2(navController: NavHostController) {
                     Text(
                         text = "하단 고정 텍스트 1",
                         fontSize = 15.sp,
+                        fontFamily = FontFamily(
+                            Font(R.font.sc_mid, FontWeight.Normal),
+                            Font(R.font.sc_bold, FontWeight.Bold)
+                        ),
                         color = Color.White
                     )
                 }
@@ -230,27 +282,37 @@ fun DetailScreen(navController: NavHostController) {
 
 
 @Composable
-fun BottomFooter(navController: NavHostController){
-    // 4. 최하단 그레이 박스 (고정 30dp)
+fun BottomFooter(navController: NavHostController) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(50.dp)
+            .height(70.dp)
             .navigationBarsPadding()
-            .background(Color.Gray),
+            .background(Color.White),
         verticalAlignment = Alignment.CenterVertically // 세로 중앙 정렬
     ) {
-        // 5개의 요소를 반복문으로 배치하거나 직접 작성
-        val menuList = listOf("메뉴1", "메뉴2", "메뉴3", "메뉴4", "메뉴5")
 
-        menuList.forEach { title ->
+        // 1. 정보를 묶을 클래스 정의
+        data class MenuData(
+            val title: String,
+            val iconRes: Int
+        )
+        // 2. 리스트 합치기
+        val navigationMenus = listOf(
+            MenuData("홈", R.drawable.img_bottom_01),
+            MenuData("프로그램", R.drawable.img_bottom_02),
+            MenuData("진행세션", R.drawable.img_bottom_03),
+            MenuData("검색", R.drawable.img_bottom_04),
+            MenuData("즐겨찾기", R.drawable.img_bottom_05)
+        )
+        navigationMenus.forEach { title ->
             Box(
                 modifier = Modifier
                     .weight(1f) // 가로 공간을 1/5씩 정확히 배분
                     .fillMaxHeight(),
                 contentAlignment = Alignment.Center // 텍스트를 각 칸의 중앙에 배치
             ) {
-                GridItemSet(title)
+                GridItemSet(title.title, title.iconRes)
             }
         }
     }
@@ -315,7 +377,6 @@ fun LayoutExample() {
 }
 
 
-
 @Composable
 fun XmlToComposeScreen2() {
     var textInput by remember { mutableStateOf("") }
@@ -331,7 +392,6 @@ fun XmlToComposeScreen2() {
             modifier = Modifier
                 .fillMaxWidth() // 왼쪽과 위에 마진 10dp
         ) {
-
 
 
             // 기존 ImageView (100dp 높이)
@@ -390,75 +450,15 @@ fun XmlToComposeScreen2() {
                     8 -> "아홉번째"
                     else -> "기타"
                 }
-                GridItemSet(title = customTitle)
+                GridItemSet(title = customTitle, R.drawable.img_sample)
             }
         }
     }
 }
 
 
-
 @Composable
-fun XmlToComposeScreen() {
-    // 1. 상태 관리를 위한 변수 (EditText의 text 속성 대응)
-    var textInput by remember { mutableStateOf("") }
-
-
-    // LinearLayout (vertical) 대응
-    Column(
-        modifier = Modifier
-            .background(Color.White)
-            .fillMaxSize(), // match_parent
-
-        horizontalAlignment = Alignment.CenterHorizontally // gravity="center_horizontal"
-    ) {
-        // ImageView 대응
-        Image(
-            painter = painterResource(id = R.drawable.img_sample), // 예시 리소스
-            contentDescription = null,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(100.dp),
-            contentScale = ContentScale.Crop
-        )
-
-        // EditText 대응
-        TextField(
-            value = textInput,
-            onValueChange = { textInput = it },
-            modifier = Modifier.fillMaxWidth(),
-            textStyle = TextStyle(
-                fontSize = 15.sp,
-                color = Color.Black
-            ),
-            placeholder = { Text("입력해주세요") }
-        )
-
-        // TextView (Button 역할) 대응
-        Text(
-            text = "Button",
-            modifier = Modifier
-                .fillMaxWidth() // match_parent
-                .padding(10.dp) // 위쪽에만 10dp 간격을 줌 (XML의 layout_marginTop)
-                .background(Color.Black) // background="@color/black"
-                .padding(10.dp) // padding="10dp"
-                .clickable { /* 클릭 이벤트 */ },
-            color = Color.White, // textColor="@color/white"
-            fontSize = 15.sp, // textSize="15dp" (Compose에서는 sp 권장)
-            textAlign = TextAlign.Center // gravity="center"
-        )
-
-        ClickableText("BUTTON2")
-
-
-        GridItemSet("Yaha")
-
-        GridItemSet2("Change")
-    }
-}
-
-@Composable
-fun GridItemSetBig(title: String) {
+fun GridItemSetBig(title: String, imgRes:Int) {
 
     val context = LocalContext.current
 
@@ -472,19 +472,21 @@ fun GridItemSetBig(title: String) {
 
     // LinearLayout(vertical, gravity="center") 대응
     Column(
-        modifier = Modifier.wrapContentSize().clickable(
-            interactionSource = interactionSource,
-            indication = LocalIndication.current, // 리플 효과
-            onClick = {
-                Toast.makeText(context, "$title 항목 클릭!", Toast.LENGTH_SHORT).show()
-            }
-        ),
+        modifier = Modifier
+            .wrapContentSize()
+            .clickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current, // 리플 효과
+                onClick = {
+                    Toast.makeText(context, "$title 항목 클릭!", Toast.LENGTH_SHORT).show()
+                }
+            ),
         horizontalAlignment = Alignment.CenterHorizontally, // 가로 중앙 정렬
         verticalArrangement = Arrangement.Center // 세로 중앙 정렬
     ) {
         // ImageView 대응
         Image(
-            painter = painterResource(id = R.drawable.img_sample),
+            painter = painterResource(id = imgRes),
             contentDescription = null,
             modifier = Modifier
                 .height(60.dp) // height="100dp"
@@ -496,6 +498,10 @@ fun GridItemSetBig(title: String) {
         Text(
             text = title,
             fontSize = 15.sp,
+            fontFamily = FontFamily(
+                Font(R.font.sc_mid, FontWeight.Normal),
+                Font(R.font.sc_bold, FontWeight.Bold)
+            ),
             color = Color.Black,
             textAlign = TextAlign.Center
         )
@@ -503,7 +509,7 @@ fun GridItemSetBig(title: String) {
 }
 
 @Composable
-fun GridItemSet(title: String) {
+fun GridItemSet(title: String, img: Int) {
 
     val context = LocalContext.current
 
@@ -517,35 +523,48 @@ fun GridItemSet(title: String) {
 
     // LinearLayout(vertical, gravity="center") 대응
     Column(
-        modifier = Modifier.wrapContentSize().clickable(
-            interactionSource = interactionSource,
-            indication = LocalIndication.current, // 리플 효과
-            onClick = {
-                Toast.makeText(context, "$title 항목 클릭!", Toast.LENGTH_SHORT).show()
+        modifier = Modifier
+            .wrapContentSize()
+            .graphicsLayer { // <-- 이 부분이 핵심입니다!
+                scaleX = scale
+                scaleY = scale
             }
-        ),
+            .clickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current, // 리플 효과
+                onClick = {
+                    Toast.makeText(context, "$title 항목 클릭!", Toast.LENGTH_SHORT).show()
+                }
+            ),
         horizontalAlignment = Alignment.CenterHorizontally, // 가로 중앙 정렬
         verticalArrangement = Arrangement.Center // 세로 중앙 정렬
     ) {
         // ImageView 대응
         Image(
-            painter = painterResource(id = R.drawable.img_sample),
+            painter = painterResource(id = img),
             contentDescription = null,
             modifier = Modifier
-                .height(30.dp) // height="100dp"
+                .height(24.dp) // height="100dp"
                 .aspectRatio(1f), // 이미지 비율 유지 (선택 사항)
             contentScale = ContentScale.Fit // adjustViewBounds와 유사한 효과
         )
 
+
+
         // TextView 대응
         Text(
             text = title,
-            fontSize = 15.sp,
-            color = Color.White,
+            fontSize = 12.sp,
+            color = Color.Black,
+            fontFamily = FontFamily(
+                Font(R.font.sc_mid, FontWeight.Normal),
+                Font(R.font.sc_bold, FontWeight.Bold)
+            ),
             textAlign = TextAlign.Center
         )
     }
 }
+
 
 @Composable
 fun GridItemSet2(title: String) {
@@ -644,6 +663,49 @@ fun TopLeftIcon() {
     }
 
 
-
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MyNavigationDrawer() {
+    // 1. Drawer 상태와 코루틴 스코프 준비
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+
+    // 2. ModalNavigationDrawer 배치
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            // 여기에 왼쪽 바(Drawer)의 UI를 작성합니다.
+            ModalDrawerSheet {
+                Text("메뉴 항목 1", modifier = Modifier.padding(16.dp))
+                Text("메뉴 항목 2", modifier = Modifier.padding(16.dp))
+            }
+        }
+    ) {
+        // 3. 메인 화면 콘텐츠
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Drawer 예제") },
+                    navigationIcon = {
+                        IconButton(onClick = {
+                            // 4. 아이콘 클릭 시 Drawer 열기 (코루틴 사용)
+                            scope.launch {
+                                drawerState.open()
+                            }
+                        }) {
+                            Icon(Icons.Default.Menu, contentDescription = "Menu")
+                        }
+                    }
+                )
+            }
+        ) { padding ->
+            Box(modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()) {
+                Text("화면 중앙 콘텐츠입니다.")
+            }
+        }
+    }
+}
