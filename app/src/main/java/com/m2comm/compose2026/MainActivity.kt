@@ -49,7 +49,6 @@ import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
@@ -64,13 +63,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.net.toUri
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -79,7 +74,6 @@ import com.m2comm.compose2026.ui.UrlData
 import com.m2comm.compose2026.ui.WebDetailScreen
 import com.m2comm.compose2026.ui.theme.Compose2026Theme
 
-import androidx.compose.runtime.getValue // 'by' 키워드를 위해 필수
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -205,7 +199,7 @@ fun LayoutExample12(
         ) {
             items(9) { index ->
                 // 1. 정보를 묶을 클래스 정의
-                GridItemSetBig(navigationMenus[index].title, navigationMenus[index].iconRes)
+                GridItemSetBig(navigationMenus[index].title, navigationMenus[index].iconRes, navController)
             }
         }
 
@@ -458,7 +452,7 @@ fun XmlToComposeScreen2() {
 
 
 @Composable
-fun GridItemSetBig(title: String, imgRes:Int) {
+fun GridItemSetBig(title: String, imgRes: Int, navController: NavController) {
 
     val context = LocalContext.current
 
@@ -479,6 +473,7 @@ fun GridItemSetBig(title: String, imgRes:Int) {
                 indication = LocalIndication.current, // 리플 효과
                 onClick = {
                     Toast.makeText(context, "$title 항목 클릭!", Toast.LENGTH_SHORT).show()
+                    navController.navigate("web")
                 }
             ),
         horizontalAlignment = Alignment.CenterHorizontally, // 가로 중앙 정렬
